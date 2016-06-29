@@ -44,7 +44,7 @@ lab7: lock_tester lock_server rsm_tester
 
 hfiles1=rpc/fifo.h rpc/connection.h rpc/rpc.h rpc/marshall.h rpc/method_thread.h\
 	rpc/thr_pool.h rpc/pollmgr.h rpc/jsl_log.h rpc/slock.h rpc/rpctest.cc\
-	lock_protocol.h lock_server.h lock_client.h gettime.h gettime.cc lang/verify.h \
+	lock_protocol.h lock_server.h locks.h lock_client.h gettime.h gettime.cc lang/verify.h \
         lang/algorithm.h
 hfiles2=yfs_client.h extent_client.h extent_protocol.h extent_server.h
 hfiles3=lock_client_cache.h lock_server_cache.h handle.h tprintf.h
@@ -73,7 +73,7 @@ ifeq ($(LAB7GE),1)
 endif
 lock_tester : $(patsubst %.cc,%.o,$(lock_tester)) rpc/librpc.a
 
-lock_server=lock_server.cc lock_smain.cc
+lock_server=lock_server.cc lock_smain.cc locks.cc
 ifeq ($(LAB4GE),1)
   lock_server+=lock_server_cache.cc handle.cc
 endif
