@@ -89,5 +89,113 @@ yfs_client::getdir(inum inum, dirinfo &din)
   return r;
 }
 
+int
+yfs_client::create(inum parent_inum, std::string name, inum& new_file)
+{
+  int r = OK;
+
+  std::string parent_content;
+  std::string file_name = "/" + name + "/";
+  if (ec->get(parent_inum, parent_content) != extent_protocol::OK) {
+    r = IOERR;
+    goto release;
+  }
+
+  if (parent_content.find(file_name) != std::string::npos) {
+    return EXIST;
+  }
+
+  new_file = random_inum(true);
+  if (ec->put(new_file, std::string()) != extent_protocol::OK) {
+    r = IOERR;
+    goto release;
+  }
+
+  parent_content.append(file_name + filename(new_file) + "/");
+  if (ec->put(parent_inum, parent_content) != extent_protocol::OK) {
+    r = IOERR;
+  }
+
+  printf("  !!! create file -> %lu\n", new_file);
+
+  release:
+    return r;
+}
+
+int yfs_client::look_up(inum parent_inum, std::string name, inum &inum, bool &found) {
+  int r = OK;
+  size_t pos, end;
+  std::string parent_content;
+  std::string file_name = "/" + name + "/";;
+  std::string ino;
+
+  printf("  !!! lookup file -> %s %llu\n", name.c_str(), parent_inum);
+
+  if (ec->get(parent_inum, parent_content) != extent_protocol::OK) {
+    r = IOERR;
+    goto release;
+  }
+
+  pos = parent_content.find(file_name);
+
+  if (pos != std::string::npos) {
+    found = true;
+    pos += file_name.size();
+    end = parent_content.find_first_of("/", pos);
+    if (end != std::string::npos) {
+      ino = parent_content.substr(pos, end - pos);
+      inum = n2i(ino.c_str());
+    } else {
+      r = IOERR;
+      goto release;
+    }
+  } else {
+    r = IOERR;
+  }
+
+  release:
+      return r;
+}
 
 
+
+yfs_client::inum
+yfs_client::random_inum(bool isfile)
+{
+  inum ret = (unsigned long long)
+  ((rand() & 0x7fffffff) | (isfile << 31));
+  ret = 0xffffffff & ret;
+  return ret;
+}
+
+int 
+yfs_client::readdir(inum inum, std::list<dirent> &dirents) 
+{
+	int r = OK;
+	std::string dir_data;
+	std::string inum_str;
+	size_t pos, name_end, name_len, inum_end, inum_len;
+	if (ec->get(inum, dir_data) != extent_protocol::OK) {
+		r = IOERR;
+		goto release;
+	}	
+	pos = 0;
+	while(pos != dir_data.size()) {
+		dirent entry;
+		pos = dir_data.find("/", pos);
+		if(pos == std::string::npos)
+			break;
+		name_end = dir_data.find_first_of("/", pos + 1);
+		name_len = name_end - pos - 1;
+		entry.name = dir_data.substr(pos + 1, name_len);
+		
+		inum_end = dir_data.find_first_of("/", name_end + 1);
+		inum_len = inum_end - name_end - 1;
+		inum_str = dir_data.substr(name_end + 1, inum_len);
+		entry.inum = n2i(inum_str.c_str());	
+		dirents.push_back(entry);
+		pos = inum_end + 1;
+	}
+release:
+	return r;
+}
