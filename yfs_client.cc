@@ -199,3 +199,71 @@ yfs_client::readdir(inum inum, std::list<dirent> &dirents)
 release:
 	return r;
 }
+
+int
+yfs_client::setattr(inum inum, struct stat *attr)
+{
+    int r = OK;
+    size_t size = attr->st_size;
+    std::string buf;
+    if (ec->get(inum, buf) != extent_protocol::OK) {
+        r = IOERR;
+        goto release;
+    }
+    buf.resize(size, '\0');
+
+    if (ec->put(inum, buf) != extent_protocol::OK) {
+        r = IOERR;
+    }
+release:
+    return r;
+}
+
+int
+yfs_client::read(inum inum, off_t off, size_t size, std::string &buf)
+{
+    int r = OK;
+    std::string file_data;
+    size_t read_size;
+
+    if (ec->get(inum, file_data) != extent_protocol::OK) {
+        r = IOERR;
+        goto release;
+    }
+
+    if (off >= file_data.size()) {
+      buf = std::string();
+    }
+
+    read_size = size;
+
+    if(off + size > file_data.size()) {
+        read_size = file_data.size() - off;
+    }
+    buf = file_data.substr(off, read_size);
+release:
+    return r;
+}
+
+int
+yfs_client::write(inum inum, off_t off, size_t size, const char *buf)
+{
+    int r = OK;
+    std::string file_data;
+    if (ec->get(inum, file_data) != extent_protocol::OK) {
+        r = IOERR;
+        goto release;
+    }
+
+    if (size + off > file_data.size()) {
+        file_data.resize(size + off, '\0');
+    }
+
+    for (int i = 0; i < size; i++)
+        file_data[off + i] = buf[i];
+    if (ec->put(inum, file_data) != extent_protocol::OK) {
+        r = IOERR;
+    }
+release:
+    return r;
+}

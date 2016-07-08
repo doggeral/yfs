@@ -49,6 +49,9 @@ class yfs_client {
   int create(inum parent_inum, std::string name, inum& new_file);
   int look_up(inum parent_inum, std::string name, inum &, bool &);
   int readdir(inum, std::list<dirent> &);
+  int setattr(inum inum, struct stat *attr);
+  int read(inum inum, off_t off, size_t size, std::string &buf);
+  int write(inum inum, off_t off, size_t size, const char *buf);
 };
 
 #endif 
