@@ -6,7 +6,7 @@
  * high-level interface only gives us complete paths.
  */
 
-#include <fuse_lowlevel.h>
+#include "osxfuse/fuse/fuse_lowlevel.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -126,10 +126,15 @@ fuseserver_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     printf("   fuseserver_setattr set size to %zu\n", attr->st_size);
     struct stat st;
     // You fill this in for Lab 2
-#if 0
+#if 1
     // Change the above line to "#if 1", and your code goes here
     // Note: fill st using getattr before fuse_reply_attr
-    fuse_reply_attr(req, &st, 0);
+    if (yfs->setattr(ino, attr) == yfs_client::OK && getattr(ino, st) == yfs_client::OK) {
+      fuse_reply_attr(req, &st, 0);
+    } else {
+      fuse_reply_err(req, ENOENT);
+    }
+
 #else
     fuse_reply_err(req, ENOSYS);
 #endif
@@ -155,10 +160,16 @@ fuseserver_read(fuse_req_t req, fuse_ino_t ino, size_t size,
                 off_t off, struct fuse_file_info *fi)
 {
   // You fill this in for Lab 2
-#if 0
+#if 1
   std::string buf;
   // Change the above "#if 0" to "#if 1", and your code goes here
-  fuse_reply_buf(req, buf.data(), buf.size());
+  yfs_client::status ret;
+
+  if ((ret = yfs->read(ino, off, size, buf)) == yfs_client::OK) {
+    fuse_reply_buf(req, buf.data(), buf.size());
+  } else {
+    fuse_reply_err(req, ENOENT);
+  }
 #else
   fuse_reply_err(req, ENOSYS);
 #endif
@@ -185,9 +196,16 @@ fuseserver_write(fuse_req_t req, fuse_ino_t ino,
                  struct fuse_file_info *fi)
 {
   // You fill this in for Lab 2
-#if 0
+#if 1
   // Change the above line to "#if 1", and your code goes here
-  fuse_reply_write(req, size);
+  yfs_client::status ret;
+
+  if ((ret = yfs->write(ino, off, size, buf)) == yfs_client::OK) {
+    fuse_reply_write(req, size);
+  } else {
+    fuse_reply_err(req, ENOENT);
+  }
+
 #else
   fuse_reply_err(req, ENOSYS);
 #endif
@@ -220,6 +238,15 @@ fuseserver_createhelper(fuse_ino_t parent, const char *name,
   e->entry_timeout = 0.0;
   e->generation = 0;
   // You fill this in for Lab 2
+  yfs_client::status ret = yfs_client::OK;
+  yfs_client::inum inum = 0;
+  ret = yfs->create(parent, std::string(name), inum);
+  if (ret == yfs_client::OK) {
+    e->ino = inum;
+    getattr(inum, e->attr);
+  }
+  return ret;
+
   return yfs_client::NOENT;
 }
 
@@ -271,6 +298,14 @@ fuseserver_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
   bool found = false;
 
   // You fill this in for Lab 2
+  yfs_client::status ret = yfs_client::OK;
+  yfs_client::inum inum = 0;
+  ret = yfs->look_up(parent, std::string(name), inum, found);
+  if (ret == yfs_client::OK) {
+    e.ino = inum;
+    getattr(inum, e.attr);
+  }
+
   if (found)
     fuse_reply_entry(req, &e);
   else
@@ -332,8 +367,17 @@ fuseserver_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 
 
   // You fill this in for Lab 2
-
-
+  yfs_client::status ret;
+  std::list<yfs_client::dirent> dirents;
+  ret = yfs->readdir(inum, dirents);
+  if (ret != yfs_client::OK) {
+    fuse_reply_err(req, ENOENT);
+    return;
+  }
+  for (std::list<yfs_client::dirent>::iterator iter = dirents.begin();
+      iter != dirents.end(); iter++) {
+    dirbuf_add(&b, iter->name.c_str(), iter->inum);
+  }
   reply_buf_limited(req, b.p, b.size, off, size);
   free(b.p);
 }

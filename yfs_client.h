@@ -40,11 +40,20 @@ class yfs_client {
 
   yfs_client(std::string, std::string);
 
+  inum random_inum(bool isfile);
+
   bool isfile(inum);
   bool isdir(inum);
 
   int getfile(inum, fileinfo &);
   int getdir(inum, dirinfo &);
+
+  int create(inum parent_inum, std::string name, inum& new_file);
+  int look_up(inum parent_inum, std::string name, inum &, bool &);
+  int readdir(inum, std::list<dirent> &);
+  int setattr(inum inum, struct stat *attr);
+  int read(inum inum, off_t off, size_t size, std::string &buf);
+  int write(inum inum, off_t off, size_t size, const char *buf);
 };
 
 #endif 

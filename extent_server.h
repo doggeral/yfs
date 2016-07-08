@@ -6,11 +6,18 @@
 #include <string>
 #include <map>
 #include "extent_protocol.h"
+#include "yfs_fd.h"
+
+using namespace std;
 
 class extent_server {
+ private:
+  std::map<extent_protocol::extentid_t, yfs_fd*> fd_map;
+  pthread_mutex_t mtx;
 
  public:
   extent_server();
+
 
   int put(extent_protocol::extentid_t id, std::string, int &);
   int get(extent_protocol::extentid_t id, std::string &);
