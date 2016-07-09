@@ -54,6 +54,8 @@ class yfs_client {
   int setattr(inum inum, struct stat *attr);
   int read(inum inum, off_t off, size_t size, std::string &buf);
   int write(inum inum, off_t off, size_t size, const char *buf);
+  int mkdir(inum parent_inum, std::string name, inum& new_folder);
+  int unlink(inum parent_inum, std::string name);
 };
 
 #endif 

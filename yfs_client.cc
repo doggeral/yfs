@@ -272,3 +272,78 @@ yfs_client::write(inum inum, off_t off, size_t size, const char *buf)
 release:
     return r;
 }
+
+int
+yfs_client::mkdir(inum parent_inum, std::string name, inum& new_folder)
+{
+  int r = OK;
+
+  std::string parent_content;
+  std::string file_name = "/" + name + "/";
+  if (ec->get(parent_inum, parent_content) != extent_protocol::OK) {
+    r = IOERR;
+    goto release;
+  }
+
+  if (parent_content.find(file_name) != std::string::npos) {
+    return EXIST;
+  }
+
+  // false will set the inum for folder.
+  new_folder = random_inum(false);
+  if (ec->put(new_folder, std::string()) != extent_protocol::OK) {
+    r = IOERR;
+    goto release;
+  }
+
+  parent_content.append(file_name + filename(new_folder) + "/");
+  if (ec->put(parent_inum, parent_content) != extent_protocol::OK) {
+    r = IOERR;
+  }
+
+  printf("  !!! create file -> %lu\n", new_folder);
+
+  release:
+    return r;
+}
+
+int
+yfs_client::unlink(inum parent_inum, std::string name) {
+  int r = OK;
+  std::string parent_content;
+  std::string filename = "/" + std::string(name) + "/";
+  size_t pos, end, len;
+  inum inum;
+
+  if (ec->get(parent_inum, parent_content) != extent_protocol::OK) {
+    r = IOERR;
+    goto release;
+  }
+
+  if ((pos = parent_content.find(filename)) == std::string::npos) {
+    r = NOENT;
+    goto release;
+  }
+
+  end = parent_content.find_first_of("/", pos + filename.size());
+  if (end == std::string::npos) {
+    r = NOENT;
+    goto release;
+  }
+  len = end - filename.size() - pos;
+  inum = n2i(parent_content.substr(pos + filename.size(), len));
+  if (!isfile(inum)) {
+    r = IOERR;
+    goto release;
+  }
+
+  parent_content.erase(pos, end - pos + 1);
+  if (ec->put(parent_inum, parent_content) != extent_protocol::OK) {
+    r = IOERR;
+    goto release;
+  }
+  if (ec->remove(inum) != extent_protocol::OK) {
+    r = IOERR;
+  }
+  release: return r;
+}
