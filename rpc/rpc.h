@@ -100,7 +100,7 @@ class rpcc : public chanmgr {
 
 		void cancel();
                 
-                int islossy() { return lossytest_ > 0; }
+    int islossy() { return lossytest_ > 0; }
 
 		int call1(unsigned int proc, 
 				marshall &req, unmarshall &rep, TO to);
