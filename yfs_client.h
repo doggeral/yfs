@@ -11,6 +11,7 @@
 
 class yfs_client {
   extent_client *ec;
+  lock_client *lc;
  public:
 
   typedef unsigned long long inum;
@@ -40,22 +41,34 @@ class yfs_client {
 
   yfs_client(std::string, std::string);
 
-  inum random_inum(bool isfile);
-
   bool isfile(inum);
   bool isdir(inum);
 
   int getfile(inum, fileinfo &);
   int getdir(inum, dirinfo &);
-
-  int create(inum parent_inum, std::string name, inum& new_file);
-  int look_up(inum parent_inum, std::string name, inum &, bool &);
+  int setattr(inum, struct stat *);
+  int read(inum, off_t, size_t, std::string &);
+  int write(inum, off_t, size_t, const char *);
+  inum random_inum(bool);
+  int create(inum, const char *, inum &);
+  int lookup(inum, const char *, inum &, bool *);
   int readdir(inum, std::list<dirent> &);
-  int setattr(inum inum, struct stat *attr);
-  int read(inum inum, off_t off, size_t size, std::string &buf);
-  int write(inum inum, off_t off, size_t size, const char *buf);
-  int mkdir(inum parent_inum, std::string name, inum& new_folder);
-  int unlink(inum parent_inum, std::string name);
+  int mkdir(inum, const char *, mode_t, inum &);
+  int unlink(inum, const char *);
+
 };
 
+class ScopedLockClient {
+	private:
+		lock_client *lc_;
+		lock_protocol::lockid_t lid;
+	public:
+		ScopedLockClient(lock_client *lc, lock_protocol::lockid_t lid):
+			lc_(lc),lid(lid) {
+				lc_->acquire(lid);
+			}
+		~ScopedLockClient() {
+			lc_->release(lid);
+		}
+};
 #endif 
